@@ -121,12 +121,64 @@ function getElementDescription(element) {
 }
 
 /**
- * Logs an event to the console with timestamp
+ * Logs an event to the console and writes to a tracking file
  * @param {string} eventType - The type of event (click/view)
  * @param {string} objectType - The type of object involved
  * @param {string} objectDescription - Description of the object
  */
 function logEvent(eventType, objectType, objectDescription) {
     const timestamp = new Date().toISOString();
-    console.log(`${timestamp}, ${eventType}, ${objectType}:${objectDescription}`);
+    const logEntry = `${timestamp}, ${eventType}, ${objectType}:${objectDescription}`;
+    
+    // Log to console for debugging
+    console.log(logEntry);
+    
+    // Save to file using Beacon API
+    saveEventToFile(logEntry);
+}
+
+/**
+ * Saves event data to a file using the Beacon API
+ * @param {string} eventData - The formatted event data to save
+ */
+function saveEventToFile(eventData) {
+    // Create a blob with the event data
+    const blob = new Blob([eventData + '\n'], { type: 'text/plain' });
+    
+    // Use the Beacon API to send the data asynchronously
+    navigator.sendBeacon('/tracking-endpoint', blob);
+    
+    // As we're running this locally without a server, also store in localStorage
+    const storedEvents = localStorage.getItem('trackingEvents') || '';
+    localStorage.setItem('trackingEvents', storedEvents + eventData + '\n');
+    
+    // If localStorage is getting too large, download the file
+    if (storedEvents.length > 10000) {
+        downloadTrackingData();
+    }
+}
+
+/**
+ * Downloads the tracking data as a text file
+ */
+function downloadTrackingData() {
+    const trackingData = localStorage.getItem('trackingEvents') || '';
+    
+    // Create a download link
+    const element = document.createElement('a');
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(trackingData));
+    element.setAttribute('download', `tracking_data_${new Date().toISOString().slice(0,10)}.txt`);
+
+    // Hide the element and add to the DOM
+    element.style.display = 'none';
+    document.body.appendChild(element);
+
+    // Trigger the download
+    element.click();
+
+    // Clean up
+    document.body.removeChild(element);
+    
+    // Reset the stored events
+    localStorage.setItem('trackingEvents', '');
 }
